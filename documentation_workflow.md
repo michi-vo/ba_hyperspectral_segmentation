@@ -32,6 +32,7 @@
 	---> **Problem:** No external media mounting possible! (biopsy data)
 
 * Workflow for using another container with additional parameters
+	* Keep all files src and data in the /media/m2/files directory (keep data even if container crashes)
 	* https://github.com/nvidia-holoscan/holohub/tree/main/.devcontainer
 	* see holohub/dev_container (line 600)
 	```bash
@@ -65,6 +66,10 @@
 	* additional resources: 
 
 		https://github.com/HyperProbe
+
+	* Run holoscan flow benchmarking
+		1. Log into container as root: apt install gir1.2-gtk-3.0 python3-gi python3-gi-cairo python3-numpy graphviz
+
 	
 
 
