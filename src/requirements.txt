@@ -1,0 +1,22 @@
+scipy==1.10.1
+cvxpy==1.3.1
+matplotlib==3.7.1
+numpy==1.24.2
+scikit_learn==1.2.2
+seaborn==0.12.2
+spectral==0.23.1
+torch==2.0.0
+tqdm==4.65.0
+h5py
+pysptools
+ipywidgets
+ipympl
+imageio
+#helicoid_NN
+ray
+pyarrow
+#holoscan flow benchmarking
+nvitop
+argparse
+pydot
+xdot
