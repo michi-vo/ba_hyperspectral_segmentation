@@ -1,11 +1,14 @@
 import sys
 sys.path.append("/workspace/holohub/benchmarks/holoscan_flow_benchmarking")
+# sys.path.append('../')
 from benchmarked_application import BenchmarkedApplication
 
 import scipy
 import os
 import h5py
 import numpy as np
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import pysptools
@@ -16,6 +19,7 @@ import torch.nn.functional as F
 from scipy.linalg import pinv
 from optimisation_helicoid import read_molecules_creatis, read_molecules_cytochrome_cb
 from holoscan.core import Application, Operator, OperatorSpec
+from holoscan.operators import HolovizOp
 
 def normalize(x):
     return (x - np.min(x)) / (np.max(x) - np.min(x))
@@ -140,12 +144,18 @@ class loadDataOp(Operator):
         spec.output("out")
 
     def compute(self, op_input, op_output, context):
+        print("loading biopsy probe file")
         biopsy_name = "Biopsy_S1_reflectance"
-        filename = "/workspace/media/m2/data/src/dataset/hyperprobe_biopsies/" + biopsy_name + ".mat"
+        filename = "/workspace/volumes/m2/data/src/dataset/hyperprobe_biopsies/" + biopsy_name + ".mat"
         with h5py.File(filename, 'r') as f:
             data = np.array(f['Ref_hyper'])
-
+        print("sending loaded data")
         op_output.emit(data, "out")
+
+def normalize(x):
+    """Normalize data to [0, 1]."""
+    return (x - np.min(x)) / (np.max(x) - np.min(x))
+
 
 class processDataOp(Operator):
     def __init__(self, *args, **kwargs):
@@ -157,16 +167,26 @@ class processDataOp(Operator):
 
     def compute(self, op_input, op_output, context):
         data = op_input.receive("in")
-
+        print("received data in process op")
         data_transposed = np.transpose(data)
         data_transposed.shape
         data_transposed[data_transposed<=0] = 10**-3
         data_transposed = F.avg_pool2d(torch.tensor(data_transposed).permute(2, 0, 1).unsqueeze(0), kernel_size=4, stride=4).squeeze(0).permute(1, 2, 0).numpy()
         img = data_transposed
         data_transposed.shape
-        
+        semisynthetic_rgb = np.concatenate((normalize(data_transposed[:,:,23][:,:,np.newaxis]), normalize(data_transposed[:,:,6][:,:,np.newaxis]), normalize(data_transposed[:,:,0][:,:,np.newaxis])),axis=2)
+        print(semisynthetic_rgb.shape)
+        rgb_channels = [23, 6, 0]  # Replace these with the desired indices
+        rgb_data = np.stack([data_transposed[:, :, i] for i in rgb_channels], axis=-1)
 
-        op_output.emit(data, "out")
+        # Normalize data to [0, 1]
+        rgb_data_normalized = normalize(rgb_data)
+        print("finished processing, sending to viz")
+        # Emit this data
+        op_output.emit(rgb_data_normalized.astype(np.float32), "out")
+
+        
+        # op_output.emit(data_transposed, "out")
 
 class visualizeDataOp(Operator):
     def __init__(self, *args, **kwargs):
@@ -176,38 +196,98 @@ class visualizeDataOp(Operator):
         spec.input("in")
 
     def compute(self, op_input, op_output, context):
-
+        print("received in viz")
         data_transposed = op_input.receive("in")
 
         wavelengths = np.linspace(510,900,79)
         print(wavelengths)
 
-        for i in range(len(wavelengths)):
-            plt.figure()
-            plt.imshow(data_transposed[:,:,i])
-            plt.colorbar()
-            plt.title("Wavelength " + str(wavelengths[i]))
-            break
+        # for i in range(len(wavelengths)):
+        #     plt.figure()
+        #     plt.imshow(data_transposed[:,:,i])
+        #     plt.colorbar()
+        #     plt.title("Wavelength " + str(wavelengths[i]))
+        #     break
 
         semisynthetic_rgb = np.concatenate((normalize(data_transposed[:,:,23][:,:,np.newaxis]), normalize(data_transposed[:,:,6][:,:,np.newaxis]), normalize(data_transposed[:,:,0][:,:,np.newaxis])),axis=2)
-        plt.imshow(semisynthetic_rgb)
+        # plt.imshow(semisynthetic_rgb)
 
-        init_interactive_visualization(data_transposed[150:350, 150:350, :], wavelengths)
+        # init_interactive_visualization(data_transposed[150:350, 150:350, :], wavelengths)
+        print("reached end of application")
 
-    class biopsyApp(Application):
-        def __init__(self, data=None, model=None, apply_clahe=True):
-            super().__init__()
+class HyperspectralVizOp(Operator):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-            # set name
-            self.name = "Depth App"
+    def setup(self, spec: OperatorSpec):
+        # spec.input("segmentation")
+        spec.input("rgb")
 
-            data = os.environ.get("HOLOHUB_DATA_PATH", "../data") if data is None else data
-            model = data if model is None else model
+    def compute(self, op_input, op_output, context):
+        # seg = op_input.receive("segmentation")
+        rgb = op_input.receive("rgb")
 
-            self.data_path = data
-            self.model_path = model
-            self.model_path_map = {"model": os.path.join(self.model_path, "dispnet_nhwc_fold.onnx")}
-            self.apply_clahe = apply_clahe
+        # Create data for a simple line plot
+        x = [1, 2, 3, 4, 5]
+        y = [2, 4, 6, 8, 10]
 
-        def compose(self):
-            loadData = loadDataOp
+        # Plot the data
+        plt.plot(x, y, label="y = 2x")
+
+        # Add labels and title
+        plt.xlabel("X-axis")
+        plt.ylabel("Y-axis")
+        plt.title("Simple Line Plot")
+
+        # Add a legend
+        plt.legend()
+
+        # Show the plot
+        plt.show()
+
+        # seg = np.moveaxis(np.squeeze(seg, axis=0), 0, -1).argmax(axis=-1)
+        # rgb_seg = LABEL_COLORMAP[seg]
+
+        plt.figure(figsize=(18, 7))
+        plt.subplot(1, 3, 1)
+        plt.imshow(rgb)
+        plt.gca().set_title("RGB image")
+        plt.axis("off")
+        plt.savefig("test_plot.png")
+
+        # plt.subplot(1, 3, 2)
+        # plt.imshow(rgb_seg)
+        # plt.gca().set_title("Segmentation")
+        # plt.axis("off")
+
+        # plt.subplot(1, 3, 3)
+        # plt.imshow(rgb)
+        # plt.imshow(rgb_seg, alpha=0.5)
+        # plt.gca().set_title("Overlay")
+        # plt.axis("off")
+
+        # plt.savefig(
+        #     os.path.join(self.output_folder, "result.png"), bbox_inches="tight", pad_inches=0
+        # )
+        # plt.close()
+
+class biopsyApp(Application):
+    def compose(self):
+        loadData = loadDataOp(self, name="loadData")
+        processData = processDataOp(self, name="processData")
+        visualizeData = visualizeDataOp(self, name="visualizeData")
+        viz = HyperspectralVizOp(self, name="viz")
+
+        holoviz_vis = HolovizOp(self, name="holoviz", **self.kwargs("holoviz"))
+
+        self.add_flow(loadData,processData)
+        self.add_flow(processData, viz, {("out", "rgb")})
+
+def main():
+    app = biopsyApp()
+    app.run()
+
+
+if __name__ == "__main__":
+    # config_file = os.path.join(os.path.dirname(__file__), "holoviz_config.yaml") #==/workspace/volumes/m2/data/src/file.yaml
+    main()

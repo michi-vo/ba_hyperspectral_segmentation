@@ -132,7 +132,7 @@ def init_interactive_visualization(image_tensor, wavelengths):
     #filename = "/home/kevin/hyperprobe_biopsies/Biopsy_S2_reflectance.mat"
 os.chdir("..")
 biopsy_name = "Biopsy_S1_reflectance"
-filename = "/workspace/media/m2/data/src/dataset/hyperprobe_biopsies/" + biopsy_name + ".mat"
+filename = "/workspace/volumes/m2/data/src/dataset/hyperprobe_biopsies/" + biopsy_name + ".mat"
 with h5py.File(filename, 'r') as f:
     data = np.array(f['Ref_hyper'])
 data_transposed = np.transpose(data)
