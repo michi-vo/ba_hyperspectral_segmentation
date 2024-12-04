@@ -62,7 +62,7 @@ cd ~/holohub
 * https://github.com/nvidia-holoscan/holohub/tree/main/.devcontainer
 * see holohub/dev_container (line 600)
 ```bash
-	./dev_container launch --persistent --ssh_x11
+	./dev_container launch --persistent --ssh_x11 --add-volume /media/m2
 	exit
 	docker container rename <container_name> hyperprobe_dev_container
 	docker start hyperprobe_dev_container
@@ -84,6 +84,19 @@ cd ~/holohub
 		rm -rf /workspace/holohub/.vscode-server
 		```
 		* close vscode and reopen container to download vscode-server files 
+	* Container doesn't start after reboot of host machine because of "device not found: snd"
+		* In holohub/dev_container: Comment out: 
+		```bash
+		# Find all audio devices
+		# if [ -d /dev/snd ]; then
+		#     audio_devices=$(find /dev/snd -type c)
+
+		#     # Mount all found audio devices
+		#     for audio_dev in $audio_devices; do
+		#         mount_device_opt+="${prefix}--device=$audio_dev${postfix}"
+		#     done
+		# fi 
+		```
 ### II.1.3.1 Build ngc image
 * Download latest holoscan container image (https://docs.nvidia.com/holoscan/sdk-user-guide/sdk_installation.html#prerequisites)
 ```bash
