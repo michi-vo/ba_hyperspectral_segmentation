@@ -70,7 +70,8 @@ cd ~/holohub
 	apt install libopenblas-dev
 	exit
 	docker exec -it hyperprobe_dev_container /bin/bash
-	cd /workspace
+	cd /workspace/volumes/media/m2/data/src
+	pip install -r requirements.txt
 ```
 * specify custom/latest holohub image: ./dev_container launch --persistent --ssh_x11 --img holohub:ngc-v2.7.0-dgpu
 
@@ -106,6 +107,13 @@ docker pull nvcr.io/nvidia/clara-holoscan/holoscan:v2.7.0-dgpu
 ```bash
 ./dev_container build
 ```
+### II.1.3.2 Future options
+#### II.1.3.2.1 Export Container (if stable container version is achieved)
+```bash
+docker export ...
+```
+#### II.1.3.2.2 Install sudo
+* install sudo to prevent having to log into the container as root each time
 
 ## III. Data
 * Copy code e.g. into /workspace/src: 
