@@ -98,6 +98,15 @@ cd ~/holohub
 		#     done
 		# fi 
 		```
+	* Interactive image output not working (plt.imshow(rgb))
+		```bash
+		gi.repository.GLib.GError: gdk-pixbuf-error-quark: Couldn’t recognize the image file format for file “/workspace/holohub/.local/lib/python3.10/site-packages/matplotlib/mpl-data/images/matplotlib.svg” (3)
+		```
+		* Set TkAgg backend for interactive plots
+		```python
+		import matplotlib
+		matplotlib.use('TkAgg')
+		```
 ### II.1.3.1 Build ngc image
 * Download latest holoscan container image (https://docs.nvidia.com/holoscan/sdk-user-guide/sdk_installation.html#prerequisites)
 ```bash
