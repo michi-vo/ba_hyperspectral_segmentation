@@ -146,7 +146,7 @@ class loadDataOp(Operator):
     def compute(self, op_input, op_output, context):
         print("loading biopsy probe file")
         biopsy_name = "Biopsy_S1_reflectance"
-        filename = "/workspace/volumes/m2/data/src/dataset/hyperprobe_biopsies/" + biopsy_name + ".mat"
+        filename = "/workspace/volumes/m2/data/ba_hyperspectral_segmentation/src/dataset/hyperprobe_biopsies/" + biopsy_name + ".mat"
         with h5py.File(filename, 'r') as f:
             data = np.array(f['Ref_hyper'])
         print("sending loaded data")

@@ -6,10 +6,10 @@ opti_patients = ["012-01","020-01","008-02", "012-02", "015-01", "008-01", "016-
 
 
 #Specificy path to Helicoid, UCL-NIR-Spectra, CREATIS Spectra
-path = "/m2/data/Downloads/hsi_brain_database/HSI_Human_Brain_Database_IEEE_Access"
-dataset_path = "/workspace/volumes/m2/data/src/dataset/"
-path_absorp = "/workspace/volumes/m2/data/src/dataset/UCL-NIR-Spectra/spectra/"
-path_creatis = "/workspace/volumes/m2/data/src/dataset/CREATIS-Spectra/spectra/"
+path = "/m2/data/ba_hyperspectral_segmentation/src/dataset/hsi_brain_database/HSI_Human_Brain_Database_IEEE_Access"
+dataset_path = "/workspace/volumes/m2/data/ba_hyperspectral_segmentation/src/dataset/"
+path_absorp = "/workspace/volumes/m2/data/ba_hyperspectral_segmentation/src/dataset/UCL-NIR-Spectra/spectra/"
+path_creatis = "/workspace/volumes/m2/data/ba_hyperspectral_segmentation/src/dataset/CREATIS-Spectra/spectra/"
 
 from spectral import * 
 import matplotlib as mpl
