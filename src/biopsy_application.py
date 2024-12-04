@@ -227,25 +227,23 @@ class HyperspectralVizOp(Operator):
         # seg = op_input.receive("segmentation")
         rgb = op_input.receive("rgb")
 
-        # Create data for a simple line plot
-        x = [1, 2, 3, 4, 5]
-        y = [2, 4, 6, 8, 10]
 
-        # Plot the data
-        plt.plot(x, y, label="y = 2x")
 
-        # Add labels and title
-        plt.xlabel("X-axis")
-        plt.ylabel("Y-axis")
-        plt.title("Simple Line Plot")
+        #save array to not do the timeconsuming loading each time
+        # reshaping the array from 3D matrice to 2D matrice.
+        rgb_reshaped = rgb.reshape(rgb.shape[0], -1)
 
-        # Add a legend
-        plt.legend()
+        # saving reshaped array to file.
+        np.savetxt("geekfile.txt", rgb_reshaped)
 
-        # Show the plot
-        plt.show()
+        # retrieving data from file.
+        loaded_rgb = np.loadtxt("geekfile.txt")
 
-        # seg = np.moveaxis(np.squeeze(seg, axis=0), 0, -1).argmax(axis=-1)
+        load_original_rgb = loaded_rgb.reshape(
+            loaded_rgb.shape[0], loaded_rgb.shape[1] // 3, 3)
+        
+
+
         # rgb_seg = LABEL_COLORMAP[seg]
 
         plt.figure(figsize=(18, 7))
@@ -254,22 +252,7 @@ class HyperspectralVizOp(Operator):
         plt.gca().set_title("RGB image")
         plt.axis("off")
         plt.savefig("test_plot.png")
-
-        # plt.subplot(1, 3, 2)
-        # plt.imshow(rgb_seg)
-        # plt.gca().set_title("Segmentation")
-        # plt.axis("off")
-
-        # plt.subplot(1, 3, 3)
-        # plt.imshow(rgb)
-        # plt.imshow(rgb_seg, alpha=0.5)
-        # plt.gca().set_title("Overlay")
-        # plt.axis("off")
-
-        # plt.savefig(
-        #     os.path.join(self.output_folder, "result.png"), bbox_inches="tight", pad_inches=0
-        # )
-        # plt.close()
+        plt.show()
 
 class biopsyApp(Application):
     def compose(self):
@@ -277,8 +260,6 @@ class biopsyApp(Application):
         processData = processDataOp(self, name="processData")
         visualizeData = visualizeDataOp(self, name="visualizeData")
         viz = HyperspectralVizOp(self, name="viz")
-
-        holoviz_vis = HolovizOp(self, name="holoviz", **self.kwargs("holoviz"))
 
         self.add_flow(loadData,processData)
         self.add_flow(processData, viz, {("out", "rgb")})
