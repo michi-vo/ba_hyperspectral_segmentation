@@ -78,6 +78,9 @@ cd ~/holohub
 * Connect vscode to container:
 	1. Contr+Shift+P
 	2. Dev containers: Attach to running container
+
+* Both the host and the container can modify the pulled repo but currently only the host can commit/push the changes
+
 * Known bugs:
 	* Cant connect to dev container inside vscode (remote)
 		* In container:
