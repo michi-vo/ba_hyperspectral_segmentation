@@ -68,6 +68,8 @@ cd ~/holohub
 	docker start hyperprobe_dev_container
 	docker exec -it --user root hyperprobe_dev_container /bin/bash
 	apt install libopenblas-dev
+	apt-get install python3-tk
+	apt install xdot
 	exit
 	docker exec -it hyperprobe_dev_container /bin/bash
 	cd /workspace/volumes/media/m2/data/src
@@ -101,6 +103,7 @@ cd ~/holohub
 		#     done
 		# fi 
 		```
+	* Container keeps breaking after each reboot?!
 	* Interactive image output not working (plt.imshow(rgb))
 		```bash
 		gi.repository.GLib.GError: gdk-pixbuf-error-quark: Couldn’t recognize the image file format for file “/workspace/holohub/.local/lib/python3.10/site-packages/matplotlib/mpl-data/images/matplotlib.svg” (3)
