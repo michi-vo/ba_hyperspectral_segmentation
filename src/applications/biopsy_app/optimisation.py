@@ -21,7 +21,6 @@ from holoscan.core import Application, Operator, OperatorSpec
 from holoscan.operators import HolovizOp
 from holoscan.conditions import CountCondition, PeriodicCondition
 
-
 def normalize(x):
     return (x - np.min(x)) / (np.max(x) - np.min(x))
 
@@ -92,7 +91,9 @@ class loadDataOp(Operator):
         super().__init__(*args, **kwargs)
 
     def setup(self, spec: OperatorSpec):
-        spec.output("out")
+        spec.output("ref_biopsy")
+        spec.output("main_biopsy")
+        spec.output("biopsy_name")
 
     def compute(self, op_input, op_output, context):
         print("loading biopsy probe file")
@@ -126,21 +127,23 @@ class loadDataOp(Operator):
             data_transposed = F.avg_pool2d(torch.tensor(data_transposed).permute(2, 0, 1).unsqueeze(0), kernel_size=4, stride=4).squeeze(0).permute(1, 2, 0).numpy()
 
         print("sending loaded data")
-        op_output.emit(mean_biopsy_s1, "ref_out")
-        op_output.emit(data_transposed, "main_out")
+        op_output.emit(mean_biopsy_s1, "ref_biopsy")
+        op_output.emit(data_transposed, "main_biopsy")
+        op_output.emit(data_transposed, "biopsy_name")
 
 class processDataOp(Operator):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     def setup(self, spec: OperatorSpec):
-        spec.input("ref_in")
-        spec.input("main_in")
-        # spec.output("out")
+        spec.input("ref_biopsy")
+        spec.input("main_biopsy")
+        spec.input("biopsy_name")
 
     def compute(self, op_input, op_output, context):
-        ref_biopsy_s1_mean = op_input.receive("ref_in")
-        main_biopsy_data = op_input.receive("main_in") #data to be evaluated??
+        ref_biopsy_s1_mean = op_input.receive("ref_biopsy")
+        main_biopsy_data = op_input.receive("main_biopsy") #data to be evaluated??
+        biopsy_name = op_input.receive("biopsy_name")
         print("received data in process op")
 
         wavelengths = np.linspace(510,900,79)
@@ -231,6 +234,7 @@ class processDataOp(Operator):
         else:
             error("Mode nonexistent")
 
+        t1 = torch.load("/workspace/volumes/m2/data/ba_hyperspectral_segmentation/src/dataset/hyperprobe_biopsies/t1.pt").numpy()
         img = main_biopsy_data
         time_taken = -1
         coarseness=1
@@ -242,14 +246,8 @@ class processDataOp(Operator):
         scattering_params = scattering_params.reshape(img.shape[0], img.shape[1], -1)
         
         errors = np.array([])
-        # coef_list, scattering_params, errors, a_t1, b_t1, img_ref, time_taken = helicoid_optimisation_scattering(img, None, M, x, coarseness=1, wavelength=wavelengths, reference_signal=mean_biopsy_s1)
-        # save_optimization_data(img_ref, np.array([128,128]), coef_list, scattering_params, errors, t1, time_taken, biopsy_name[0]+"_s1_normalized_" + str(right_cut) + "_t1_fixed" + mode)
-        
-        
-        # Emit this data
-        # op_output.emit(rgb_data_normalized.astype(np.float32), "out")
-
-        # op_output.emit(data_transposed, "out")
+        coef_list, scattering_params, errors, a_t1, b_t1, img_ref, time_taken = helicoid_optimisation_scattering(img, None, M, x, coarseness=1, wavelength=wavelengths, reference_signal=mean_biopsy_s1)
+        save_optimization_data(img_ref, np.array([128,128]), coef_list, scattering_params, errors, t1, time_taken, biopsy_name[0]+"_s1_normalized_" + str(right_cut) + "_t1_fixed" + mode)
 
 class visualizeDataOp(Operator):
     def __init__(self, *args, **kwargs):
@@ -265,13 +263,6 @@ class visualizeDataOp(Operator):
         wavelengths = np.linspace(510,900,79)
         print(self.wavelengths)
 
-        # for i in range(len(wavelengths)):
-        #     plt.figure()
-        #     plt.imshow(data_transposed[:,:,i])
-        #     plt.colorbar()
-        #     plt.title("Wavelength " + str(wavelengths[i]))
-        #     break
-
         semisynthetic_rgb = np.concatenate((normalize(data_transposed[:,:,23][:,:,np.newaxis]), normalize(data_transposed[:,:,6][:,:,np.newaxis]), normalize(data_transposed[:,:,0][:,:,np.newaxis])),axis=2)
         # plt.imshow(semisynthetic_rgb)
 
@@ -286,10 +277,9 @@ class biopsyApp(Application):
         loadData = loadDataOp(self, name="loadData", condition=CountCondition(self, count=2))
         processData = processDataOp(self, time_taken=self.time_taken, name="processData")
         visualizeData = visualizeDataOp(self, name="visualizeData")
-        viz = HyperspectralVizOp(self, name="viz")
 
-        self.add_flow(loadData,processData)
-        self.add_flow(processData, viz, {("out", "rgb")})
+        self.add_flow(loadData,processData, {("ref_biopsy", "ref_biopsy"), ("main_biopsy", "main_biopsy"), ("biopsy_name", "biopsy_name")})
+        # self.add_flow(processData, viz, {("out", "rgb")})
          
 
 def main():
@@ -298,5 +288,4 @@ def main():
 
 
 if __name__ == "__main__":
-    # config_file = os.path.join(os.path.dirname(__file__), "holoviz_config.yaml") #==/workspace/volumes/m2/data/src/file.yaml
     main()
