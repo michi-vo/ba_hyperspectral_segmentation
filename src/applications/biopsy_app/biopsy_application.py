@@ -1,12 +1,6 @@
 import sys
-sys.path.append("/workspace/holohub/benchmarks/holoscan_flow_benchmarking")
 sys.path.append("/workspace/volumes/m2/data/ba_hyperspectral_segmentation/src")
-from benchmarked_application import BenchmarkedApplication
-
-import sys
-
 sys.path.append('../../')
-
 
 import scipy
 import os
@@ -25,6 +19,8 @@ from scipy.linalg import pinv
 from optimisation_helicoid import read_molecules_creatis, read_molecules_cytochrome_cb
 from holoscan.core import Application, Operator, OperatorSpec
 from holoscan.operators import HolovizOp
+from holoscan.conditions import CountCondition, PeriodicCondition
+
 
 def normalize(x):
     return (x - np.min(x)) / (np.max(x) - np.min(x))
@@ -64,53 +60,6 @@ def normalize(x):
 #     plt.tight_layout()
 #     plt.show()
 
-def init_interactive_visualization(image_tensor, wavelengths):
-    def find_rgb_indices(wavelengths, rgb_wavelengths=[630, 540, 510]):
-        rgb_indices = []
-        for wl in rgb_wavelengths:
-            index = np.abs(wavelengths - wl).argmin()
-            rgb_indices.append(index)
-        return rgb_indices
-    
-    rgb_indices = find_rgb_indices(wavelengths)
-    
-    def generate_rgb_image(image_tensor, rgb_indices):
-        rgb_image = np.zeros((image_tensor.shape[0], image_tensor.shape[1], 3))
-        for i, idx in enumerate(rgb_indices):
-            rgb_image[:, :, i] = normalize(image_tensor[:, :, idx])
-        rgb_image = rgb_image
-        return rgb_image
-    
-    rgb_image = generate_rgb_image(image_tensor, rgb_indices)
-    
-    colors = list(mcolors.TABLEAU_COLORS.values()) 
-    color_index = 0  
-    
-    def onclick(event):
-        nonlocal color_index
-        ix, iy = int(event.xdata), int(event.ydata)
-        spectrum = image_tensor[iy, ix, :]
-        
-        ax1.plot(ix, iy, 'x', color=colors[color_index % len(colors)], markersize=10)
-        ax2.plot(wavelengths, spectrum, color=colors[color_index % len(colors)], label=f'Pixel ({ix}, {iy})')
-        ax2.set_title('Spectral Signatures')
-        ax2.set_xlabel('Wavelength')
-        ax2.set_ylabel('Intensity')
-        ax2.legend()
-        
-        fig.canvas.draw()
-        
-        color_index += 1  
-        
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-    
-    ax1.imshow(rgb_image)
-    ax1.set_title('RGB Representation of Hyperspectral Image')
-    
-    fig.canvas.mpl_connect('button_press_event', onclick)
-    
-    plt.show()
-
 # def save_optimization_data(img_ref, reference_point, coef_list, scattering_params, errors, t1, time_taken, folder):
 #     """
 #     Used after running the optimisation script/notebook to be used later by the Neural Network
@@ -143,6 +92,7 @@ def init_interactive_visualization(image_tensor, wavelengths):
 
 class loadDataOp(Operator):
     def __init__(self, *args, **kwargs):
+        # condition = PeriodicCondition(self, 1000)
         super().__init__(*args, **kwargs)
 
     def setup(self, spec: OperatorSpec):
@@ -173,19 +123,23 @@ class processDataOp(Operator):
     def compute(self, op_input, op_output, context):
         data = op_input.receive("in")
         print("received data in process op")
+
+        #convert cube
         data_transposed = np.transpose(data)
         data_transposed.shape
         data_transposed[data_transposed<=0] = 10**-3
         data_transposed = F.avg_pool2d(torch.tensor(data_transposed).permute(2, 0, 1).unsqueeze(0), kernel_size=4, stride=4).squeeze(0).permute(1, 2, 0).numpy()
         img = data_transposed
         data_transposed.shape
+
+        #construct rgb
         semisynthetic_rgb = np.concatenate((normalize(data_transposed[:,:,23][:,:,np.newaxis]), normalize(data_transposed[:,:,6][:,:,np.newaxis]), normalize(data_transposed[:,:,0][:,:,np.newaxis])),axis=2)
         print(semisynthetic_rgb.shape)
         rgb_channels = [23, 6, 0]  # Replace these with the desired indices
         rgb_data = np.stack([data_transposed[:, :, i] for i in rgb_channels], axis=-1)
 
         # Normalize data to [0, 1]
-        rgb_data_normalized = normalize(rgb_data)
+        rgb_data_normalized = normalize(rgb_data) #necessary?
         print("finished processing, sending to viz")
         # Emit this data
         op_output.emit(rgb_data_normalized.astype(np.float32), "out")
@@ -242,33 +196,33 @@ class HyperspectralVizOp(Operator):
         np.savetxt("geekfile.txt", rgb_reshaped)
 
         # retrieving data from file.
-        loaded_rgb = np.loadtxt("geekfile.txt")
+        # loaded_rgb = np.loadtxt("geekfile.txt")
 
-        load_original_rgb = loaded_rgb.reshape(
-            loaded_rgb.shape[0], loaded_rgb.shape[1] // 3, 3)
+        # load_original_rgb = loaded_rgb.reshape(
+        #     loaded_rgb.shape[0], loaded_rgb.shape[1] // 3, 3)
         
 
 
         # rgb_seg = LABEL_COLORMAP[seg]
 
-        plt.figure(figsize=(18, 7))
-        plt.subplot(1, 3, 1)
-        plt.imshow(rgb)
-        plt.gca().set_title("RGB image")
-        plt.axis("off")
-        plt.savefig("test_plot.png")
-        plt.show()
+        # plt.figure(figsize=(18, 7))
+        # plt.subplot(1, 3, 1)
+        # plt.imshow(rgb)
+        # plt.gca().set_title("RGB image")
+        # plt.axis("off")
+        # plt.savefig("test_plot.png")
+        # plt.show()
 
-class biopsyApp(BenchmarkedApplication):
+class biopsyApp(Application):
     def compose(self):
-        loadData = loadDataOp(self, name="loadData")
+        loadData = loadDataOp(self, name="loadData", condition=CountCondition(self, count=2))
         processData = processDataOp(self, name="processData")
         visualizeData = visualizeDataOp(self, name="visualizeData")
         viz = HyperspectralVizOp(self, name="viz")
 
         self.add_flow(loadData,processData)
         self.add_flow(processData, viz, {("out", "rgb")})
-        return 
+         
 
 def main():
     app = biopsyApp()
