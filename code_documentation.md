@@ -100,3 +100,50 @@ xdot live_app_graph.dot
 
 * With loading operator:
 ```python
+```
+
+### Possible improvements
+
+* convert .mat files into blosc binary files (and float16 might be sufficient)
+	Biopsy cube dimensions (example):
+
+	biopsy_cube.shape  # (2048, 2048, 224) 
+
+	2048x2048 spatial resolution
+
+	224 spectral bands
+
+	Float32 data type = 2048 * 2048 * 224 * 4 bytes ≈ 3.75GB
+
+	filepath: /workspace/holohub/applications/hyperspectral_segmentation/hyperspectral_segmentation.py
+	
+	Segmentation cube dimensions (example):
+
+	segmentation_cube.shape  # (512, 512, 128)
+
+	512x512 spatial resolution
+
+	128 spectral bands
+
+	Float32 data type = 512 * 512 * 128 * 4 bytes ≈ 134MB
+
+* Cut cube into smaller chunks (paralellisation)
+* Use cuda/cudnn
+* Use neural network (already available?) instead of least squares
+
+
+### Least Squares
+
+The Least Squares Problem:
+The goal is to find the parameters (delta_c_i, a_ti, b_ti) that minimize the sum of squared residuals:
+minimize Σ(residuals²)
+where residuals = f(delta_c_i, a_ti, b_ti; b[i], b_t1, a_t1, M, x)
+In other words, we are trying to find the concentration changes and scattering parameters that best explain the observed data, given the previous scattering parameters and the known absorption coefficients.
+The non-linearity comes from the scattering term S(...), which makes this a non-linear least squares problem. The scipy.optimize.least_squares function uses the Levenberg-Marquardt algorithm or a trust region reflective algorithm to solve this non-linear optimization problem.
+This optimization is performed for each pixel or time point i, allowing the concentrations and scattering parameters to vary across the image or time series.
+
+### Additional resources
+
+* Load .mat files as binary (C): 
+
+https://stackoverflow.com/questions/32332920/efficiently-load-a-large-mat-into-memory-in-opencv/32357875#32357875
