@@ -235,50 +235,21 @@ class preProcessDataOp(Operator):
         M, x = self.create_absorption_matrix()
         print("[preProcessDataOp]: Successfully created absorption matrix")
 
-        start_time = time.time()
-        # Convert cube
-        biopsy_ref_transposed = np.transpose(biopsy_ref)
-        biopsy_ref_transposed.shape
-        biopsy_ref_transposed[biopsy_ref_transposed<=0] = 10**-3
-        biopsy_ref_transposed = F.avg_pool2d(torch.tensor(biopsy_ref_transposed).permute(2, 0, 1).unsqueeze(0), kernel_size=4, stride=4).squeeze(0).permute(1, 2, 0).numpy()
-        mean_biopsy_s1 = np.mean(biopsy_ref_transposed[150:350, 150:350, :].reshape(-1, biopsy_ref_transposed.shape[-1]), axis=0)
-        np_time = time.time() - start_time
-
         #cupy
-        start_time = time.time()
         biopsy_ref_transposed = cp.transpose(cp.asarray(biopsy_ref))
         biopsy_ref_transposed.shape
         biopsy_ref_transposed[biopsy_ref_transposed<=0] = 10**-3
         biopsy_ref_transposed = cp_ndimage.uniform_filter(biopsy_ref_transposed, size=(4, 4, 1), mode='reflect')
         biopsy_ref_transposed = biopsy_ref_transposed[::4, ::4, :]
-        mean_biopsy_s1_cp = cp.mean(biopsy_ref_transposed[150:350, 150:350, :].reshape(-1, biopsy_ref_transposed.shape[-1]), axis=0)
-        cp_time = time.time() - start_time
+        mean_biopsy_s1 = cp.mean(biopsy_ref_transposed[150:350, 150:350, :].reshape(-1, biopsy_ref_transposed.shape[-1]), axis=0)
 
-        print(np.allclose(mean_biopsy_s1, cp.asnumpy(mean_biopsy_s1_cp),rtol=1e-05, atol=1e-02))
-        print("RMSE: ", np.sqrt(np.mean((mean_biopsy_s1 - cp.asnumpy(mean_biopsy_s1_cp))**2)))
-        print(f"1.run: NumPy Time: {np_time}")
-        print(f"1.run: CuPy Time: {cp_time}")
-
-        start_time = time.time()
         biopsy_transposed = cp.transpose(cp.asarray(biopsy))
         biopsy_transposed.shape
         biopsy_transposed[biopsy_transposed<=0] = 10**-3
         biopsy_transposed = cp_ndimage.uniform_filter(biopsy_transposed, size=(4, 4, 1), mode='reflect')
         biopsy_transposed = biopsy_transposed[::4, ::4, :]
-        img_cp = biopsy_transposed
-        cp_time = time.time() - start_time
-
-        start_time = time.time()
-        biopsy_transposed = np.transpose(biopsy)
-        biopsy_transposed.shape
-        biopsy_transposed[biopsy_transposed<=0] = 10**-3
-        biopsy_transposed = F.avg_pool2d(torch.tensor(biopsy_transposed).permute(2, 0, 1).unsqueeze(0), kernel_size=4, stride=4).squeeze(0).permute(1, 2, 0).numpy()
         img = biopsy_transposed
-        np_time = time.time() - start_time
 
-        print(f"2.run: NumPy Time: {np_time}")
-        print(f"2.run: CuPy Time: {cp_time}")
-        
         # Combine probes to filter out noise and enhance contrast with log
         # Reduces spatial resolution of img with stepsize=coarseness while keeping all spectral bands (img[::coarseness,::coarseness,:]) 
         coarseness=1
@@ -442,7 +413,6 @@ class optimizationDataOp(Operator):
         op_output.emit(t1, "t1")
         print("[optimizationDataOp]: Sent data")
         
-
 class visualizeDataOp(Operator):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -456,7 +426,6 @@ class visualizeDataOp(Operator):
         spec.input("img_ref")
         spec.input("t1")
         
-
     def compute(self, op_input, op_output, context):
         # seg = op_input.receive("segmentation")
         errors = op_input.receive("errors")
