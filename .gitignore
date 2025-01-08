@@ -10,3 +10,5 @@ helicoid_wl_opti*
 config.py
 wlopti/
 biopsy_samples_figs/
+
+.blosc
