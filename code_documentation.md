@@ -55,10 +55,11 @@
 ```
 3. In holohub/ 
 ```bash
-./run setup.py
+./run setup
 #for biopsy_app (currently broken)
 ./benchmarks/holoscan_flow_benchmarking/patch_application.sh applications/biopsy_app
 ./run build biopsy_app --benchmark 
+# if app cannot be found revert git changes
 python benchmarks/holoscan_flow_benchmarking/benchmark.py -a biopsy_app --language python -r 3 -i 3 --sched greedy -d myoutputs --level debug
 
 #for test_app
@@ -96,10 +97,29 @@ xdot live_app_graph.dot
 ./benchmarks/holoscan_flow_benchmarking/restore_application.sh test_app
 ```
 
+### Useful commands
+
+* Cleanup
+You can run the command below to reset your build directory:
+```bash
+./run clear_cache
+```
+In some cases you may also want to clear out datasets downloaded by applications to the data folder:
+```bash
+rm -rf ./data
+```
+
 ### Bugs and Problems
 
 * With loading operator:
 ```python
+```
+* Wrong permissions:
+```bash
+	chown -R ivan:ivan /workspace/
+	chown -R ivan:ivan /var/lib/apt/lists
+	chown -R ivan:ivan /etc
+	chown -R ivan:ivan /var/cache/apt/archives/partial/
 ```
 
 ### Possible improvements

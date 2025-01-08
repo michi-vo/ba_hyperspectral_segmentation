@@ -11,4 +11,4 @@ config.py
 wlopti/
 biopsy_samples_figs/
 
-.blosc
+*.blosc
