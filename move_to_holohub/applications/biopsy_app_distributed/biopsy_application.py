@@ -29,6 +29,8 @@ import blosc
 import json
 import os
 from cupyx.scipy import ndimage as cp_ndimage
+import cupyx.profiler
+from torch.autograd.profiler import profile
 
 def compress_large_array(data, chunk_size=1000, output_dir="compressed_data"):
     """
@@ -190,6 +192,8 @@ class loadDataOp(Operator):
 class preProcessDataOp(Operator):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         
     def setup(self, spec: OperatorSpec):
         spec.input("biopsy_ref")
@@ -202,14 +206,7 @@ class preProcessDataOp(Operator):
         spec.output("x")
         self.wavelengths = np.linspace(510,900,79)
 
-    def compute(self, op_input, op_output, context):
-        biopsy = op_input.receive("biopsy")
-        biopsy_ref = op_input.receive("biopsy_ref")
-
-        print("[preProcessDataOp]: Received data")
-        M, x = self.create_absorption_matrix()
-        print("[preProcessDataOp]: Successfully created absorption matrix")
-
+    def numpy_operation(biopsy_ref):
         start_time = time.time()
         # Convert cube
         biopsy_ref_transposed = np.transpose(biopsy_ref)
@@ -219,6 +216,9 @@ class preProcessDataOp(Operator):
         mean_biopsy_s1 = np.mean(biopsy_ref_transposed[150:350, 150:350, :].reshape(-1, biopsy_ref_transposed.shape[-1]), axis=0)
         np_time = time.time() - start_time
 
+        return mean_biopsy_s1
+
+    def cupy_operation(self, biopsy_ref):
         start_time = time.time()
         biopsy_ref_transposed = cp.transpose(cp.asarray(biopsy_ref))
         biopsy_ref_transposed.shape
@@ -228,8 +228,67 @@ class preProcessDataOp(Operator):
         mean_biopsy_s1 = cp.mean(biopsy_ref_transposed[150:350, 150:350, :].reshape(-1, biopsy_ref_transposed.shape[-1]), axis=0)
         cp_time = time.time() - start_time
 
-        print(f"NumPy Time: {np_time}")
-        print(f"CuPy Time: {cp_time}")
+        return mean_biopsy_s1
+
+    def pytorch_operation(self, biopsy_ref):
+        start_time = time.time()
+        
+        # Convert to PyTorch tensor and move to GPU
+        biopsy_ref_tensor = torch.from_numpy(biopsy_ref).cuda()
+        
+        # Transpose
+        biopsy_ref_transposed = biopsy_ref_tensor.permute(2, 1, 0)
+        
+        # Replace values <= 0 with 10^-3
+        biopsy_ref_transposed = torch.where(biopsy_ref_transposed <= 0, torch.tensor(1e-3).cuda(), biopsy_ref_transposed)
+        
+        # Uniform filter (equivalent to average pooling in this case)
+        biopsy_ref_transposed = F.avg_pool3d(biopsy_ref_transposed.unsqueeze(0), 
+                                            kernel_size=(4, 4, 1), 
+                                            stride=(4, 4, 1), 
+                                            padding=(2, 2, 0)).squeeze(0)
+        
+        # Slice the tensor
+        biopsy_ref_transposed = biopsy_ref_transposed[:, :, :]
+        
+        # Calculate mean
+        mean_biopsy_s1 = biopsy_ref_transposed[150:350, 150:350, :].reshape(-1, biopsy_ref_transposed.shape[-1]).mean(dim=0)
+        
+        torch_time = time.time() - start_time
+        
+        return mean_biopsy_s1.cpu().numpy()
+
+    def compute(self, op_input, op_output, context):
+        biopsy = op_input.receive("biopsy")
+        biopsy_ref = op_input.receive("biopsy_ref")
+
+        print("[preProcessDataOp]: Received data")
+        M, x = self.create_absorption_matrix()
+        print("[preProcessDataOp]: Successfully created absorption matrix")
+
+        
+        # np_mean = self.numpy_operation(biopsy_ref)
+        # cp_mean = self.cupy_operation(biopsy_ref)
+        # torch_mean = self.pytorch_operation(biopsy_ref)
+        print(torch.cuda.is_available())
+        print(torch.version.cuda)
+
+        # Profile CuPy
+        with cupyx.profiler.time_range("cupy_mean"):
+            cupy_result = self.cupy_operation(biopsy_ref)
+
+        # Profile PyTorch
+        with profile(use_device='cuda') as prof:
+            pytorch_result = self.pytorch_operation(biopsy_ref)
+
+        print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
+
+        # Compare results
+        print(f"Results match: {np.allclose(cupy_result.get(), pytorch_result.cpu().numpy())}")
+
+
+        # print(f"NumPy Time: {np_time}")
+        # print(f"CuPy Time: {cp_time}")
 
         biopsy_transposed = np.transpose(biopsy)
         biopsy_transposed.shape
