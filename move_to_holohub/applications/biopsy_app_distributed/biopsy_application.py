@@ -206,54 +206,23 @@ class preProcessDataOp(Operator):
         spec.output("x")
         self.wavelengths = np.linspace(510,900,79)
 
-    def numpy_operation(biopsy_ref):
-        start_time = time.time()
-        # Convert cube
-        biopsy_ref_transposed = np.transpose(biopsy_ref)
-        biopsy_ref_transposed.shape
-        biopsy_ref_transposed[biopsy_ref_transposed<=0] = 10**-3
-        biopsy_ref_transposed = F.avg_pool2d(torch.tensor(biopsy_ref_transposed).permute(2, 0, 1).unsqueeze(0), kernel_size=4, stride=4).squeeze(0).permute(1, 2, 0).numpy()
-        mean_biopsy_s1 = np.mean(biopsy_ref_transposed[150:350, 150:350, :].reshape(-1, biopsy_ref_transposed.shape[-1]), axis=0)
-        np_time = time.time() - start_time
-
-        return mean_biopsy_s1
-
-    def cupy_operation(self, biopsy_ref):
-        start_time = time.time()
-        biopsy_ref_transposed = cp.transpose(cp.asarray(biopsy_ref))
-        biopsy_ref_transposed.shape
-        biopsy_ref_transposed[biopsy_ref_transposed<=0] = 10**-3
-        biopsy_ref_transposed = cp_ndimage.uniform_filter(biopsy_ref_transposed, size=(4, 4, 1), mode='reflect')
-        biopsy_ref_transposed = biopsy_ref_transposed[::4, ::4, :]
-        mean_biopsy_s1 = cp.mean(biopsy_ref_transposed[150:350, 150:350, :].reshape(-1, biopsy_ref_transposed.shape[-1]), axis=0)
-        cp_time = time.time() - start_time
-
-        return mean_biopsy_s1
-
     def pytorch_operation(self, biopsy_ref):
         start_time = time.time()
-        
         # Convert to PyTorch tensor and move to GPU
         biopsy_ref_tensor = torch.from_numpy(biopsy_ref).cuda()
-        
         # Transpose
         biopsy_ref_transposed = biopsy_ref_tensor.permute(2, 1, 0)
-        
         # Replace values <= 0 with 10^-3
         biopsy_ref_transposed = torch.where(biopsy_ref_transposed <= 0, torch.tensor(1e-3).cuda(), biopsy_ref_transposed)
-        
         # Uniform filter (equivalent to average pooling in this case)
         biopsy_ref_transposed = F.avg_pool3d(biopsy_ref_transposed.unsqueeze(0), 
                                             kernel_size=(4, 4, 1), 
                                             stride=(4, 4, 1), 
                                             padding=(2, 2, 0)).squeeze(0)
-        
         # Slice the tensor
         biopsy_ref_transposed = biopsy_ref_transposed[:, :, :]
-        
         # Calculate mean
         mean_biopsy_s1 = biopsy_ref_transposed[150:350, 150:350, :].reshape(-1, biopsy_ref_transposed.shape[-1]).mean(dim=0)
-        
         torch_time = time.time() - start_time
         
         return mean_biopsy_s1.cpu().numpy()
@@ -266,48 +235,54 @@ class preProcessDataOp(Operator):
         M, x = self.create_absorption_matrix()
         print("[preProcessDataOp]: Successfully created absorption matrix")
 
-        
-        # np_mean = self.numpy_operation(biopsy_ref)
-        # cp_mean = self.cupy_operation(biopsy_ref)
-        # torch_mean = self.pytorch_operation(biopsy_ref)
-        print(torch.cuda.is_available())
-        print(torch.version.cuda)
+        start_time = time.time()
+        # Convert cube
+        biopsy_ref_transposed = np.transpose(biopsy_ref)
+        biopsy_ref_transposed.shape
+        biopsy_ref_transposed[biopsy_ref_transposed<=0] = 10**-3
+        biopsy_ref_transposed = F.avg_pool2d(torch.tensor(biopsy_ref_transposed).permute(2, 0, 1).unsqueeze(0), kernel_size=4, stride=4).squeeze(0).permute(1, 2, 0).numpy()
+        mean_biopsy_s1 = np.mean(biopsy_ref_transposed[150:350, 150:350, :].reshape(-1, biopsy_ref_transposed.shape[-1]), axis=0)
+        np_time = time.time() - start_time
 
-        # Profile CuPy
-        with cupyx.profiler.time_range("cupy_mean"):
-            cupy_result = self.cupy_operation(biopsy_ref)
+        #cupy
+        start_time = time.time()
+        biopsy_ref_transposed = cp.transpose(cp.asarray(biopsy_ref))
+        biopsy_ref_transposed.shape
+        biopsy_ref_transposed[biopsy_ref_transposed<=0] = 10**-3
+        biopsy_ref_transposed = cp_ndimage.uniform_filter(biopsy_ref_transposed, size=(4, 4, 1), mode='reflect')
+        biopsy_ref_transposed = biopsy_ref_transposed[::4, ::4, :]
+        mean_biopsy_s1_cp = cp.mean(biopsy_ref_transposed[150:350, 150:350, :].reshape(-1, biopsy_ref_transposed.shape[-1]), axis=0)
+        cp_time = time.time() - start_time
 
-        # Profile PyTorch
-        with profile(use_device='cuda') as prof:
-            pytorch_result = self.pytorch_operation(biopsy_ref)
+        print(np.allclose(mean_biopsy_s1, cp.asnumpy(mean_biopsy_s1_cp),rtol=1e-05, atol=1e-02))
+        print("RMSE: ", np.sqrt(np.mean((mean_biopsy_s1 - cp.asnumpy(mean_biopsy_s1_cp))**2)))
+        print(f"1.run: NumPy Time: {np_time}")
+        print(f"1.run: CuPy Time: {cp_time}")
 
-        print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
+        start_time = time.time()
+        biopsy_transposed = cp.transpose(cp.asarray(biopsy))
+        biopsy_transposed.shape
+        biopsy_transposed[biopsy_transposed<=0] = 10**-3
+        biopsy_transposed = cp_ndimage.uniform_filter(biopsy_transposed, size=(4, 4, 1), mode='reflect')
+        biopsy_transposed = biopsy_transposed[::4, ::4, :]
+        img_cp = biopsy_transposed
+        cp_time = time.time() - start_time
 
-        # Compare results
-        print(f"Results match: {np.allclose(cupy_result.get(), pytorch_result.cpu().numpy())}")
-
-
-        # print(f"NumPy Time: {np_time}")
-        # print(f"CuPy Time: {cp_time}")
-
+        start_time = time.time()
         biopsy_transposed = np.transpose(biopsy)
         biopsy_transposed.shape
         biopsy_transposed[biopsy_transposed<=0] = 10**-3
         biopsy_transposed = F.avg_pool2d(torch.tensor(biopsy_transposed).permute(2, 0, 1).unsqueeze(0), kernel_size=4, stride=4).squeeze(0).permute(1, 2, 0).numpy()
         img = biopsy_transposed
+        np_time = time.time() - start_time
 
-        # start_time = time.time()
-        # cp.transpose(cp.asarray(biopsy_ref))
-        # biopsy_ref_transposed.shape
-        # biopsy_ref_transposed[biopsy_ref_transposed<=0] = 10**-3
-        # biopsy_ref_transposed = cp.asarray(F.avg_pool2d(torch.tensor(cp.asnumpy(biopsy_ref_transposed)).permute(2, 0, 1).unsqueeze(0), kernel_size=4, stride=4).squeeze(0).permute(1, 2, 0))
-        # mean_biopsy_s1 = cp.mean(biopsy_ref_transposed[150:350, 150:350, :].reshape(-1, biopsy_ref_transposed.shape[-1]), axis=0)
-        # cp_time = time.time() - start_time
+        print(f"2.run: NumPy Time: {np_time}")
+        print(f"2.run: CuPy Time: {cp_time}")
         
         # Combine probes to filter out noise and enhance contrast with log
         # Reduces spatial resolution of img with stepsize=coarseness while keeping all spectral bands (img[::coarseness,::coarseness,:]) 
         coarseness=1
-        img_ref = -np.log(img[::coarseness,::coarseness,:] / cp.asnumpy(mean_biopsy_s1))[:,:,np.in1d(self.wavelengths,x)]
+        img_ref = -np.log(cp.asnumpy(img[::coarseness,::coarseness,:]) / cp.asnumpy(mean_biopsy_s1))[:,:,np.in1d(self.wavelengths,x)]
         b = img_ref.reshape(-1, img_ref.shape[-1])
 
         # construct rgb

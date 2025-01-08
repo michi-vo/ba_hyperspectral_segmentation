@@ -1,3 +1,13 @@
+# Improvements
+1. Use cupy instead of numpy for matrix/array operations
+
+![np vs np](img/np_vs_cp.png)
+
+with RMSE:
+
+![np vs np](img/rmse.png)
+
+
 # Changes in code
 * In biopsy.ipynb: change the file path depending on your system configuration
 --> use dynamic path allocation
