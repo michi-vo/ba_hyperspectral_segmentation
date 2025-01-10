@@ -7,7 +7,6 @@ src/dataset/hsi_brain_database
 src/dataset/UCL-NIR-Spectra
 
 helicoid_wl_opti*
-config.py
 wlopti/
 biopsy_samples_figs/
 
