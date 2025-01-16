@@ -2,6 +2,7 @@
 
 Host: Ubuntu 20.04, Slave: Ubuntu 20.04, Manual Mode, Pre-Config, Ivan: niklas
 Put Clara in Reset mode not recovery
+regular install
 
 * Known Bugs:
 	* Ngc container:
