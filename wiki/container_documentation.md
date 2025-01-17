@@ -1,16 +1,3 @@
-# I. Flashing Clara
-
-Host: Ubuntu 20.04, Slave: Ubuntu 20.04, Manual Mode, Pre-Config, Ivan: niklas
-Put Clara in Reset mode not recovery
-regular install
-
-* Known Bugs:
-	* Ngc container:
-		error: XDG_RUNTIME_DIR not set in the environment.
-		--> Check on host: echo $DISPLAY
-			returns e.g. :1
-		--> set DISPLAY in container: export DISPLAY=:1 
-
 # II. Creating a docker container environment
 
 ## II.1 Option 1 - Create a custom docker container (without default Dockerfile)
