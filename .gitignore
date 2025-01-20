@@ -10,4 +10,4 @@ helicoid_wl_opti*
 wlopti/
 biopsy_samples_figs/
 
-*.blosc
+# *.blosc
