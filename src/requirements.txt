@@ -20,4 +20,5 @@ nvitop
 argparse
 pydot
 # xdot
+pybind11
 

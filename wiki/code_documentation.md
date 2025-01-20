@@ -7,6 +7,25 @@ with RMSE:
 
 ![np vs np](img/rmse.png)
 
+2. Use c++ to load the biopsy data
+	* Previously with Python:
+
+		![python_loading_biopsy](img/loading_biopsy_py.png)
+
+	* Install C operator:
+		* Configure (in /workspace/holohub/applications/biopsy_app_c_loading)
+		```
+		cmake -S . -B build -D Holoscan_ROOT="/opt/nvidia/holoscan"
+		```
+		* Build
+		```
+		cmake --build build -j
+		```
+		
+	* With C:
+
+
+
 
 # Changes in code
 * In biopsy.ipynb: change the file path depending on your system configuration

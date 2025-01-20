@@ -56,6 +56,7 @@ cd ~/holohub
 	docker start hyperprobe_dev_container
 	docker exec -it --user root hyperprobe_dev_container /bin/bash
 	apt install libopenblas-dev
+	apt-get install libhdf5-dev #for c++ biopsy data loading
 	apt-get install python3-tk
 	apt install xdot
 	exit
