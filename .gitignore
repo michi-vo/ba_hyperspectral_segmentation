@@ -1,10 +1,10 @@
 src/dataset/miniCYRIL Piglet Data/
 src/dataset/helicoid/
 
-src/dataset/hyperprobe_biopsies/
-src/dataset/CREATIS-Spectra
+src/dataset/hyperprobe_biopsies/*.mat
+# src/dataset/CREATIS-Spectra
 src/dataset/hsi_brain_database
-src/dataset/UCL-NIR-Spectra
+# src/dataset/UCL-NIR-Spectra
 
 helicoid_wl_opti*
 wlopti/
