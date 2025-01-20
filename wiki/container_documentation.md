@@ -93,12 +93,12 @@ cd ~/holohub
 		```
 	* Container/Image keeps breaking
 		* Container:
-			![docker_broken_container](img/broken_ngc_container.png)
+			![docker_broken_container](img/docker_broken_container.png)
 
 
 		* Images break and name defaults to <none>:
 
-			![docker_broken_images](img/broken_ngc_images.png)
+			![docker_broken_images](img/docker_broken_images.png)
 
 	* Interactive image output not working (plt.imshow(rgb))
 		```bash
