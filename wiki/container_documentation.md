@@ -91,7 +91,15 @@ cd ~/holohub
 		#     done
 		# fi 
 		```
-	* Container keeps breaking after each reboot?!
+	* Container/Image keeps breaking
+		* Container:
+			![broken_ngc_container](img/broken_ngc_container.png)
+
+
+		* Images break and name defaults to <none>:
+
+			![broken_ngc_images](img/broken_ngc_images.png)
+
 	* Interactive image output not working (plt.imshow(rgb))
 		```bash
 		gi.repository.GLib.GError: gdk-pixbuf-error-quark: Couldn’t recognize the image file format for file “/workspace/holohub/.local/lib/python3.10/site-packages/matplotlib/mpl-data/images/matplotlib.svg” (3)
